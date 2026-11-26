@@ -42,7 +42,8 @@ Deploy, wait for the green check (the first boot creates the database, which tak
 - **Services:** LearnHouse (nginx in front of the Next.js web app, the Python API and the live collaboration server), Postgres 16 with pgvector, and Redis 8 with append-only persistence, all on Railway's private network. Database migrations run on every start.
 - **One domain variable:** the web app needs about a dozen URL settings (API, backend, cookies, CORS, CSRF, collaboration WebSocket). The template derives them all from `LEARNHOUSE_DOMAIN`. Any of them set as a variable still wins.
 - **Security:** CORS and CSRF are scoped to your domain; upstream's default pattern accepts any site. Secure cookies over HTTPS, and generated secrets for sign-in tokens, web sessions and the collaboration server. If one is emptied, a replacement is generated once and kept on the volume, outside the folder LearnHouse serves files from, so the API never refuses to start for a missing secret.
-- **Memory:** Railway counts the kernel's cache of files read from the volume as the service's memory. The template drops that cache for course files every 15 minutes, so watching videos doesn't inflate the bill.
+- **Memory:** LearnHouse needs a 1 GB memory limit (Railway's Free plan stops at 0.5 GB): the API, web app and collaboration server idle at about 550 MB together. On a smaller limit the service shows a page saying so instead of being stopped in a loop. Railway also counts the kernel's cache of files read from the volume as the service's memory; the template drops that cache for course files every 15 minutes, so watching videos doesn't inflate the bill.
+- **Processes:** the web app, API and collaboration server run under a small supervisor that restarts any of them if it stops, with their logs going straight to Railway's deploy logs.
 - **Image:** upstream's official `ghcr.io/learnhouse/app:1.4.5`, pinned, plus a small entrypoint.
 
 ## Why Deploy LearnHouse on Railway?

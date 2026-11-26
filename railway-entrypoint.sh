@@ -8,7 +8,9 @@
 #   where upstream reads them); kept secrets are in /data/.railway, outside what is served;
 # - an empty JWT secret, NextAuth secret, collab key or admin password is generated once
 #   and kept on the volume, so the API never refuses to start for a missing secret;
-# - waits for Postgres, which starts alongside it.
+# - waits for Postgres, which starts alongside it;
+# - on a plan under 1 GB (the apps idle at about 550 MB and would be killed in a loop), a
+#   page says how to raise the memory limit instead.
 set -u
 log() { echo "[railway] $*"; }
 
@@ -42,6 +44,29 @@ base="https://$domain"
 slug="${LEARNHOUSE_INITIAL_ORG_SLUG:-default}"
 slug="$(printf '%s' "$slug" | tr 'A-Z' 'a-z')"
 export LEARNHOUSE_DOMAIN="$domain" LEARNHOUSE_INITIAL_ORG_SLUG="$slug"
+
+# Memory gate: below ~900 MB the web app, API and collab server can't all run.
+limit=$(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo max)
+case "$limit" in '' | max | *[!0-9]*) limit=0 ;; esac
+if [ "$limit" -gt 0 ] && [ "$limit" -lt 900000000 ]; then
+  mb=$((limit / 1048576))
+  log "this service has a ${mb} MB memory limit; LearnHouse needs 1 GB. Raise it under Settings > Resources (Free plans stop at 0.5 GB) and redeploy."
+  dir=/tmp/notice
+  mkdir -p "$dir/api/v1"
+  echo true > "$dir/api/v1/health"
+  cat > "$dir/index.html" <<PAGE
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>LearnHouse needs 1 GB of memory</title>
+<body style="font:16px/1.5 system-ui,sans-serif;max-width:40em;margin:4em auto;padding:0 1em">
+<h1>LearnHouse needs 1 GB of memory</h1>
+<p>This service is limited to ${mb} MB. LearnHouse runs a web app, an API and a live
+collaboration server, which together need about 600 MB, so it would be stopped again and
+again. On Railway, open the LearnHouse service's <b>Settings &gt; Resources</b>, set memory
+to at least 1 GB (a Free plan stops at 0.5 GB), and redeploy. Your data is untouched.</p>
+</body>
+PAGE
+  cd "$dir" && exec python3 -m http.server "$HTTP_PORT" --bind 0.0.0.0
+fi
 
 set_default() { [ -n "${!1:-}" ] || export "$1=$2"; }
 set_default LEARNHOUSE_FRONTEND_DOMAIN "$domain"
