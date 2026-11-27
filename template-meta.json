@@ -1,8 +1,9 @@
 {
   "name": "LearnHouse",
   "short_name": "LMS",
-  "description": "Open-source LMS for online courses, assignments, certificates and communities",
+  "description": "Open-source LMS for online courses, assignments, certificates and community",
   "category": "Other",
   "image": "https://raw.githubusercontent.com/two-workspaces/learnhouse/main/icon.png",
-  "id": "a46ca9c1-793c-4e44-8fd5-0dc6b93b4f19"
+  "id": "a46ca9c1-793c-4e44-8fd5-0dc6b93b4f19",
+  "published": true
 }
